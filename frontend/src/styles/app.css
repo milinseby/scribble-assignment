@@ -75,6 +75,41 @@ input {
   text-transform: uppercase;
 }
 
+.room-code-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 28px;
+  border: 2px solid rgba(47, 117, 111, 0.2);
+  border-radius: 20px;
+  background: linear-gradient(135deg, #edf7f3 0%, #f0faf6 100%);
+  text-align: center;
+}
+
+.room-code-badge__label {
+  color: var(--brand);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.room-code-badge__code {
+  color: var(--brand-strong);
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+}
+
+.room-code-badge__hint {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 .app-shell__title {
   margin: 0;
   color: #1c2938;
@@ -197,6 +232,14 @@ input {
   display: grid;
   gap: 8px;
   max-width: 46rem;
+}
+
+.lobby-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
 }
 
 .page-header h1,

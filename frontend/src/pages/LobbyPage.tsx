@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/Card";
 import { PageHeader } from "../components/PageHeader";
+import { RoomCodeBadge } from "../components/RoomCodeBadge";
 import { useRoomState, useRoomStore } from "../state/roomStore";
 
 export function LobbyPage() {
@@ -31,11 +32,14 @@ export function LobbyPage() {
 
   return (
     <section className="panel placeholder-page">
-      <PageHeader
-        kicker={`Room ${room.code}`}
-        title="Lobby"
-        description="This room is available for the scaffolded flow. Open the game screen to inspect the placeholder gameplay areas."
-      />
+      <div className="lobby-header">
+        <PageHeader
+          kicker="Waiting for players"
+          title="Lobby"
+          description="Share the room code with friends so they can join your game."
+        />
+        <RoomCodeBadge code={room.code} />
+      </div>
 
       <div className="summary-grid">
         <Card title="Participants">

@@ -4,6 +4,7 @@ import { Card } from "../components/Card";
 import { GuessForm } from "../components/GuessForm";
 import { PageHeader } from "../components/PageHeader";
 import { ResultPanel } from "../components/ResultPanel";
+import { RoomCodeBadge } from "../components/RoomCodeBadge";
 import { Scoreboard } from "../components/Scoreboard";
 import { useRoomState } from "../state/roomStore";
 
@@ -25,11 +26,14 @@ export function GamePage() {
 
   return (
     <section className="panel placeholder-page">
-      <PageHeader
-        kicker={`Room ${room.code}`}
-        title="Game Scaffold"
-        description="This screen shows the placeholder canvas, guess input, scoreboard, and result areas."
-      />
+      <div className="lobby-header">
+        <PageHeader
+          kicker="Now playing"
+          title="Game Scaffold"
+          description="This screen shows the placeholder canvas, guess input, scoreboard, and result areas."
+        />
+        <RoomCodeBadge code={room.code} />
+      </div>
 
       <div className="summary-grid">
         <Card title="Canvas">
