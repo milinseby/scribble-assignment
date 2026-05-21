@@ -1,0 +1,65 @@
+name: Spec Kit Artifacts
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-artifacts:
+    name: Required Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Spec Kit artifacts exist
+        run: |
+          missing=0
+          complete_feature_count=0
+
+          # Constitution
+          if [ ! -f ".specify/memory/constitution.md" ]; then
+            echo "Missing: .specify/memory/constitution.md"
+            missing=1
+          else
+            echo "Found: constitution"
+          fi
+
+          # Spec artifacts per feature group. Numbering may vary, but at least
+          # four feature directories must include spec.md, plan.md, and tasks.md.
+          shopt -s nullglob
+          for dir in specs/[0-9][0-9][0-9]-*/; do
+            complete=1
+
+            for f in spec.md plan.md tasks.md; do
+              if [ ! -f "$dir/$f" ]; then
+                echo "Missing: $dir/$f"
+                complete=0
+              else
+                echo "Found: $dir/$f"
+              fi
+            done
+
+            if [ "$complete" -eq 1 ]; then
+              complete_feature_count=$((complete_feature_count + 1))
+            fi
+          done
+
+          if [ "$complete_feature_count" -lt 4 ]; then
+            echo "Expected at least 4 complete Spec Kit feature directories; found $complete_feature_count."
+            missing=1
+          fi
+
+          # Reflection filename casing is accepted either way; the AI grader
+          # evaluates reflection quality.
+          reflection_count=$(find . -maxdepth 1 -type f -iname "reflection.md" | wc -l | tr -d ' ')
+          if [ "$reflection_count" -eq 0 ]; then
+            echo "Missing: reflection.md or equivalent root reflection file"
+            missing=1
+          else
+            echo "Found: reflection file"
+          fi
+
+          if [ $missing -eq 1 ]; then
+            echo ""
+            echo "Some required artifact groups are missing. Add them before final submission."
+            exit 1
+          fi
