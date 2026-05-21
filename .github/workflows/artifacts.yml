@@ -1,65 +1,110 @@
-name: Spec Kit Artifacts
+name: Pre-Evaluation Check
 
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
-  check-artifacts:
-    name: Required Artifacts
+  pre-evaluation:
+    name: AI Pre-Evaluation Evidence
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - name: Check Spec Kit artifacts exist
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies
+        if: hashFiles('backend/package-lock.json') != ''
+        working-directory: backend
+        continue-on-error: true
+        run: npm ci
+
+      - name: Install frontend dependencies
+        if: hashFiles('frontend/package-lock.json') != ''
+        working-directory: frontend
+        continue-on-error: true
+        run: npm ci
+
+      - name: Run pre-evaluation check
+        id: precheck
         run: |
-          missing=0
-          complete_feature_count=0
+          set +e
+          node .github/scripts/pre-evaluation-check.mjs
+          exit_code=$?
+          echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
+          exit 0
 
-          # Constitution
-          if [ ! -f ".specify/memory/constitution.md" ]; then
-            echo "Missing: .specify/memory/constitution.md"
-            missing=1
-          else
-            echo "Found: constitution"
-          fi
+      - name: Publish precheck to workflow summary
+        run: cat precheck-results/ai-precheck-report.md >> "$GITHUB_STEP_SUMMARY"
 
-          # Spec artifacts per feature group. Numbering may vary, but at least
-          # four feature directories must include spec.md, plan.md, and tasks.md.
-          shopt -s nullglob
-          for dir in specs/[0-9][0-9][0-9]-*/; do
-            complete=1
+      - name: Upload AI precheck reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-precheck-report
+          path: |
+            precheck-results/ai-precheck-report.md
+            precheck-results/ai-precheck-report.json
 
-            for f in spec.md plan.md tasks.md; do
-              if [ ! -f "$dir/$f" ]; then
-                echo "Missing: $dir/$f"
-                complete=0
-              else
-                echo "Found: $dir/$f"
-              fi
-            done
+      - name: Comment precheck report on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- ai-precheck-report -->';
+            const reportPath = 'precheck-results/ai-precheck-report.md';
+            const report = fs.readFileSync(reportPath, 'utf8');
+            const maxLength = 60000;
+            const body = `${marker}\n${report.length > maxLength
+              ? `${report.slice(0, maxLength)}\n\n_Report truncated. Download the full ai-precheck-report artifact for complete details._`
+              : report}`;
 
-            if [ "$complete" -eq 1 ]; then
-              complete_feature_count=$((complete_feature_count + 1))
-            fi
-          done
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.data.find((comment) =>
+              comment.user.type === 'Bot' && comment.body?.includes(marker)
+            );
 
-          if [ "$complete_feature_count" -lt 4 ]; then
-            echo "Expected at least 4 complete Spec Kit feature directories; found $complete_feature_count."
-            missing=1
-          fi
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
 
-          # Reflection filename casing is accepted either way; the AI grader
-          # evaluates reflection quality.
-          reflection_count=$(find . -maxdepth 1 -type f -iname "reflection.md" | wc -l | tr -d ' ')
-          if [ "$reflection_count" -eq 0 ]; then
-            echo "Missing: reflection.md or equivalent root reflection file"
-            missing=1
-          else
-            echo "Found: reflection file"
-          fi
-
-          if [ $missing -eq 1 ]; then
-            echo ""
-            echo "Some required artifact groups are missing. Add them before final submission."
-            exit 1
-          fi
+      - name: Fail on hard precheck blockers
+        if: steps.precheck.outputs.exit_code != '0'
+        run: |
+          echo "Pre-evaluation found hard blockers. See ai-precheck-report artifact or PR comment."
+          exit 1
